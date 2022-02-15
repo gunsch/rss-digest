@@ -4,7 +4,10 @@
 # in `lib/` subdirectory.
 #
 # Note: The `lib` directory is added to `sys.path` by `appengine_config.py`.
-Flask==0.10
-feedparser==5.2.1
-python-dateutil==2.5.3
+Flask>=1.0.0
+feedparser==6.0.8
+feedwerk
+google-api-python-client
+google-cloud-ndb
+py-dateutil==2.2
 pytz

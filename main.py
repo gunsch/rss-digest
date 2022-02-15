@@ -2,31 +2,24 @@ from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from dateutil import parser
-from urlparse import urljoin
+from urllib.parse import urljoin
 from flask import Flask
 from flask import Response
 from flask import render_template
 from flask import request
-from google.appengine.ext import ndb
-from google.appengine.api import mail
-from google.appengine.api import urlfetch
-from werkzeug.contrib.atom import AtomFeed
+from feedwerk.atom import AtomFeed
+from google.cloud import ndb
 
 import feedparser
+import os
 import pprint
-import re
 import traceback
 import pytz
 
-
-# TODO new approach
-
-# Use the existing RSS daily digest (from either IFTTT or the other site)
-# but make this an RSS digest composer --- interlacing new posts from other feeds
-
-
 app = Flask(__name__)
 app.config['DEBUG'] = True
+
+client = ndb.Client()
 
 
 DEFAULT_KEY = 'jesse.gunsch@gmail.com'
@@ -40,53 +33,55 @@ class Feed(ndb.Model):
 
 @app.route('/')
 def hello():
-    """Lists the stored feeds."""
+  """Lists the stored feeds."""
+  with client.context():
     values = get_feeds()
     return 'feeds: ' + '<br/>'.join(map(str,values))
 
 def get_feeds():
-    values_query = Feed.query(ancestor=parent_key())
-    return values_query.fetch(100)
+  values_query = Feed.query(ancestor=parent_key())
+  return values_query.fetch(100)
 
 def parent_key():
   return ndb.Key('User', DEFAULT_KEY)
 
 def get_recent_posts(filter_recent=False):
-  feeds = get_feeds()
-  posts = []
+  with client.context():
+    feeds = get_feeds()
+    posts = []
 
-  for feed in feeds:
-    result = feedparser.parse(feed.url)
-    for entry in result['entries']:
-      try:
-        # entry['content'] should be an array
-        if 'content' in entry:
-          html_contents = filter(lambda content: 'html' in content['type'], entry['content'])
-          if not html_contents:
-            continue
-          html_content = html_contents[0]
-        elif 'summary_detail' in entry:
-          html_content = entry['summary_detail']
-        else:
-          raise Exception('not sure whats going on here')
-        post = {
-          'author': entry['author'] if 'author' in entry else '',
-          'content': html_content['value'],
-          'content_type': html_content['type'],
-          'url': entry['link'],
-          'published': parser.parse(entry['published']),
-          'title': '%s (%s)' % (entry['title'], result['feed']['title'])
-        }
-        if 'updated' in entry:
-          post['updated'] = parser.parse(entry['updated'])
-        if not filter_recent or pytz.UTC.localize(datetime.now()) - post['published'] < timedelta(1):
-          posts.append(post)
-      except Exception as e:
-        pprint.pprint(entry)
-        raise e
-        break
+    for feed in feeds:
+      result = feedparser.parse(feed.url)
+      for entry in result['entries']:
+        try:
+          # entry['content'] should be an array
+          if 'content' in entry:
+            html_contents = filter(lambda content: 'html' in content['type'], entry['content'])
+            if not html_contents:
+              continue
+            html_content = html_contents[0]
+          elif 'summary_detail' in entry:
+            html_content = entry['summary_detail']
+          else:
+            raise Exception('not sure whats going on here')
+          post = {
+            'author': entry['author'] if 'author' in entry else '',
+            'content': html_content['value'],
+            'content_type': html_content['type'],
+            'url': entry['link'],
+            'published': parser.parse(entry['published']),
+            'title': '%s (%s)' % (entry['title'], result['feed']['title'])
+          }
+          if 'updated' in entry:
+            post['updated'] = parser.parse(entry['updated'])
+          if not filter_recent or pytz.UTC.localize(datetime.now()) - post['published'] < timedelta(1):
+            posts.append(post)
+        except Exception as e:
+          pprint.pprint(entry)
+          raise e
+          break
 
-  return sorted(posts, key=lambda post: post['published'], reverse=True)
+    return sorted(posts, key=lambda post: post['published'], reverse=True)
 
 @app.route('/insert')
 def insert():
@@ -134,11 +129,12 @@ def feed():
 
 def handle_error(scraper):
   error = traceback.format_exc()
-  mail.send_mail(
-      'jesse.gunsch@gmail.com',
-      'jesse.gunsch@gmail.com',
-      'scraper failed: ' + scraper,
-      'error: ' + error)
+  # Oh no, no errors now
+  # mail.send_mail(
+  #     'jesse.gunsch@gmail.com',
+  #     'jesse.gunsch@gmail.com',
+  #     'scraper failed: ' + scraper,
+  #     'error: ' + error)
   raise
 
 @app.errorhandler(404)
