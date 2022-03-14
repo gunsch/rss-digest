@@ -38,7 +38,7 @@ def get_recent_posts(filter_recent=False):
           html_contents = filter(lambda content: 'html' in content['type'], entry['content'])
           if not html_contents:
             continue
-          html_content = html_contents[0]
+          html_content = list(html_contents)[0]
         elif 'summary_detail' in entry:
           html_content = entry['summary_detail']
         else:
@@ -60,7 +60,7 @@ def get_recent_posts(filter_recent=False):
         raise e
         break
 
-    return sorted(posts, key=lambda post: post['published'], reverse=True)
+  return sorted(posts, key=lambda post: post['published'], reverse=True)
 
 @app.route('/raw_posts')
 def raw_posts():
@@ -72,7 +72,7 @@ def make_external(url):
 
 def add_post_to_feed(feed, post):
   # TODO: ignoring content_type right now
-  feed.add(post['title'], unicode(post['content']),
+  feed.add(post['title'], post['content'],
            content_type='html',
            author=post['author'],
            url=make_external(post['url']),
