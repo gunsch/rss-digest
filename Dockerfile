@@ -1,5 +1,7 @@
 FROM python:3.8-slim-buster
 
+LABEL org.opencontainers.image.source https://github.com/gunsch/rss-digest
+
 ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
