@@ -8,7 +8,6 @@ from flask import Response
 from flask import render_template
 from flask import request
 from feedwerk.atom import AtomFeed
-from google.cloud import ndb
 
 import feedparser
 import os
@@ -16,81 +15,52 @@ import pprint
 import traceback
 import pytz
 
+from config import FEEDS
+
 app = Flask(__name__)
 app.config['DEBUG'] = True
-
-client = ndb.Client()
-
-
-DEFAULT_KEY = 'jesse.gunsch@gmail.com'
-
-
-
-class Feed(ndb.Model):
-  """Sub model for representing a stored feed."""
-  url = ndb.StringProperty(indexed=True)
 
 
 @app.route('/')
 def hello():
   """Lists the stored feeds."""
-  with client.context():
-    values = get_feeds()
-    return 'feeds: ' + '<br/>'.join(map(str,values))
-
-def get_feeds():
-  values_query = Feed.query(ancestor=parent_key())
-  return values_query.fetch(100)
-
-def parent_key():
-  return ndb.Key('User', DEFAULT_KEY)
+  return 'feeds: ' + '<br/>'.join(FEEDS)
 
 def get_recent_posts(filter_recent=False):
-  with client.context():
-    feeds = get_feeds()
-    posts = []
+  posts = []
 
-    for feed in feeds:
-      result = feedparser.parse(feed.url)
-      for entry in result['entries']:
-        try:
-          # entry['content'] should be an array
-          if 'content' in entry:
-            html_contents = filter(lambda content: 'html' in content['type'], entry['content'])
-            if not html_contents:
-              continue
-            html_content = html_contents[0]
-          elif 'summary_detail' in entry:
-            html_content = entry['summary_detail']
-          else:
-            raise Exception('not sure whats going on here')
-          post = {
-            'author': entry['author'] if 'author' in entry else '',
-            'content': html_content['value'],
-            'content_type': html_content['type'],
-            'url': entry['link'],
-            'published': parser.parse(entry['published']),
-            'title': '%s (%s)' % (entry['title'], result['feed']['title'])
-          }
-          if 'updated' in entry:
-            post['updated'] = parser.parse(entry['updated'])
-          if not filter_recent or pytz.UTC.localize(datetime.now()) - post['published'] < timedelta(1):
-            posts.append(post)
-        except Exception as e:
-          pprint.pprint(entry)
-          raise e
-          break
+  for feed in FEEDS:
+    result = feedparser.parse(feed)
+    for entry in result['entries']:
+      try:
+        # entry['content'] should be an array
+        if 'content' in entry:
+          html_contents = filter(lambda content: 'html' in content['type'], entry['content'])
+          if not html_contents:
+            continue
+          html_content = html_contents[0]
+        elif 'summary_detail' in entry:
+          html_content = entry['summary_detail']
+        else:
+          raise Exception('not sure whats going on here')
+        post = {
+          'author': entry['author'] if 'author' in entry else '',
+          'content': html_content['value'],
+          'content_type': html_content['type'],
+          'url': entry['link'],
+          'published': parser.parse(entry['published']),
+          'title': '%s (%s)' % (entry['title'], result['feed']['title'])
+        }
+        if 'updated' in entry:
+          post['updated'] = parser.parse(entry['updated'])
+        if not filter_recent or pytz.UTC.localize(datetime.now()) - post['published'] < timedelta(1):
+          posts.append(post)
+      except Exception as e:
+        pprint.pprint(entry)
+        raise e
+        break
 
     return sorted(posts, key=lambda post: post['published'], reverse=True)
-
-@app.route('/insert')
-def insert():
-  url = request.args.get('url')
-  if not url:
-    return 'need url parameter'
-
-  Feed.get_or_insert(url, parent=parent_key(), url=url)
-  return 'inserted ' + url
 
 @app.route('/raw_posts')
 def raw_posts():
@@ -141,3 +111,6 @@ def handle_error(scraper):
 def page_not_found(e):
     """Return a custom 404 error."""
     return 'Sorry, nothing at this URL.', 404
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0')
