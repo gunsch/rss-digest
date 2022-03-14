@@ -1,6 +1,6 @@
 ## RSS "Daily Digest" aggregator thing
 
-Composes RSS feeds into other RSS feeds
+Composes RSS feeds into other RSS feeds.
 
 ### Local development
 
