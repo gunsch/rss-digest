@@ -1,8 +1,12 @@
 version: 2.1
+workflows:
+  build:
+    jobs:
+      - build:
+          context:
+            - Everything
 jobs:
  build:
-   context:
-     - Everything
    machine:
      image: ubuntu-2004:202111-02
    steps:
