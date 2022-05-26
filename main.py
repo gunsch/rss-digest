@@ -30,15 +30,16 @@ def get_recent_posts(filter_recent=False):
   posts = []
 
   for feed in FEEDS:
+    print('processing feed: ' + feed, flush=True)
     result = feedparser.parse(feed)
     for entry in result['entries']:
       try:
         # entry['content'] should be an array
         if 'content' in entry:
-          html_contents = filter(lambda content: 'html' in content['type'], entry['content'])
+          html_contents = list(filter(lambda content: 'html' in content['type'], entry['content']))
           if not html_contents:
             continue
-          html_content = list(html_contents)[0]
+          html_content = html_contents[0]
         elif 'summary_detail' in entry:
           html_content = entry['summary_detail']
         else:
