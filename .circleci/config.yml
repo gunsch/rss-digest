@@ -1,6 +1,8 @@
 version: 2.1
 jobs:
  build:
+   context:
+     - Everything
    machine:
      image: ubuntu-2004:202111-02
    steps:
