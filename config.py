@@ -6,4 +6,5 @@ FEEDS = [
     'https://www.bloomberg.com/opinion/authors/ARbTQlRLRjE/matthew-s-levine.rss',
     'https://xkcd.com/rss.xml',
     'https://smbc-rss-plus.mindflakes.com/rss.xml',
+    'https://www.clementinemorrigan.com/feed',
 ]
